@@ -245,17 +245,17 @@
   └── 38cd739a-821b-4b6d-adb5-d29abe0abf73/
         └── 1792558050912.jpg</code></pre>
 
-            <p>Those folder names are not decoration. The storage policy checks them.</p>
+
 
             <p>Bucket settings:</p>
             <ul>
                 <li><strong>Public:</strong> on, so the image can be shown with a plain URL</li>
                 <li><strong>Size limit:</strong> about 500 KB per file</li>
-                <li><strong>Types:</strong> jpg, png and gif only</li>
+                <li><strong>Types:</strong> any image: image/* </li>
             </ul>
 
             <div class="warn">
-                <strong>Public only affects reading.</strong> Making the bucket public lets
+                Making the bucket public lets
                 anyone <em>view</em> a picture. It does not let anyone <em>upload</em> &mdash;
                 that still needs a policy.
             </div>
@@ -263,7 +263,7 @@
 
         <section class="card">
             <span class="step">3</span>
-            <h4>Policies: the bouncer</h4>
+            <h4>Policies:</h4>
 
             <p>
                 Every table and bucket has Row Level Security. When it is on, the default
@@ -278,12 +278,9 @@
   on public.user_profiles for select
   using (auth.uid() = uuid);</code></pre>
 
-            <p>
-                The other three are identical in shape &mdash; replace <code>select</code> with
-                <code>insert</code>, <code>update</code> or <code>delete</code>.
-            </p>
 
-            <p>Storage needs its own policies:</p>
+
+
             <ul>
                 <li><strong>Read:</strong> anyone, because the pictures are public</li>
                 <li><strong>Upload / replace / delete:</strong> signed-in users only</li>
@@ -310,16 +307,13 @@
             </table>
 
             <p style="margin-top:.75rem;">
-                <code>anon</code> is exactly "not logged in". It is one shared role for every
-                visitor on earth, which is why a policy comparing
-                <code>auth.uid() = uuid</code> quietly refuses it &mdash; <code>null</code>
-                is never equal to anything.
+                <code>anon</code> is the same as "not logged in". A policy comparing
+                <code>auth.uid() = uuid</code> quietly refuses it.
             </p>
 
             <div class="warn">
                 <strong>Check the Role box when you make a policy.</strong> Left blank, it
-                defaults to <code>public</code>, meaning <em>everyone including anon</em>. A
-                policy you meant for "signed-in users" can end up open to the whole internet.
+                defaults to <code>public</code>, meaning <em>everyone including anon</em>.
             </div>
         </section>
 
@@ -349,14 +343,14 @@ await db.from('user_profiles').insert({
 });</code></pre>
 
             <div class="note">
-                <strong>Why the 400&times;400 check is in JavaScript:</strong> the database can
-                store a file but cannot measure one. So the browser measures the image before
-                uploading. The bucket still caps the size and the file type.
+                <strong>The 400px&times;400px check is in JavaScript:</strong> the database can
+                store a file but cannot measure one. The browser can detect the image dimensions before
+                uploading.
             </div>
         </section>
 
         <section class="card">
-            <h4>When it breaks, the message tells you where</h4>
+            <h4>Possible issues:</h4>
 
             <table>
                 <tr>
