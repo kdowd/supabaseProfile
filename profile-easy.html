@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile — easy version</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
+
+    <style>
+        body {
+            background-color: antiquewhite;
+            margin: 0;
+            min-height: 100vh;
+            font: small monospace, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 0.66rem;
+            gap: 1rem;
+        }
+
+        section {
+            width: 100%;
+            max-width: 440px;
+            padding: 0 1rem;
+            box-sizing: border-box;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #b9ae9c;
+            border-radius: 10px;
+            padding: 11px 13px;
+            font: inherit;
+            font-size: 15px;
+            margin-bottom: 16px;
+            background-color: #fffaf2;
+        }
+
+        input::placeholder {
+            color: #a8a9aa;
+        }
+
+        input:focus {
+            outline: 2px solid #3bdf25;
+            outline-offset: 1px;
+        }
+
+        input[readonly] {
+            background-color: #efe6d8;
+            color: #5b5348;
+        }
+
+        input[type="file"] {
+            background-color: transparent;
+            border-style: dashed;
+            padding: 9px 11px;
+            font-size: 13px;
+        }
+
+        button {
+            font: inherit;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            padding: 11px 18px;
+            border-radius: 10px;
+            border: 1px solid #000;
+            background-color: #5f6675;
+            color: snow;
+            cursor: pointer;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: #4c525f;
+        }
+
+        button:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+        }
+
+        header {
+            padding: 1rem;
+            background-color: #5f6675;
+            color: snow;
+        }
+
+        h4 {
+            margin: 0 0 1rem;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: #6b6257;
+            margin: -10px 0 16px;
+        }
+
+        .status {
+            font-size: 13px;
+            min-height: 1.2em;
+            margin: 0.5rem 0 0;
+        }
+
+        .status.error {
+            color: crimson;
+        }
+
+        .status.success {
+            color: #1d6b2f;
+        }
+
+        .preview {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 0 0 16px;
+        }
+
+        .preview img {
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border: 1px solid #b9ae9c;
+            border-radius: 10px;
+            background-color: #fffaf2;
+        }
+
+        .preview p {
+            margin: 0;
+            font-size: 12px;
+            color: #6b6257;
+            flex: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h3>My Great App Profile Page (easy version):</h3>
+    </header>
+
+    <div class="wrapper">
+
+        <section>
+            <h4>Your profile</h4>
+
+            <form id="profile-form" novalidate>
+                <label for="email">Email</label>
+                <input id="email" type="email" readonly placeholder="loading...">
+                <p class="hint">This comes from your sign-in. You cannot change it here.</p>
+
+                <label for="username">Username</label>
+                <input id="username" type="text" placeholder="e.g. dave">
+
+                <label for="image">Profile picture</label>
+                <input id="image" type="file" accept="image/jpeg,image/png,image/gif">
+                <p class="hint">JPG, PNG or GIF. Biggest allowed: 400 x 400 pixels and 500 KB.</p>
+
+                <div class="preview" id="preview-box" hidden>
+                    <img id="preview-picture" alt="Your picture">
+                    <p id="preview-words"></p>
+                </div>
+
+                <div>
+                    <button id="save-button" type="submit" disabled>Save profile</button>
+                </div>
+
+                <p class="status" id="status-text" role="status" aria-live="polite"></p>
+            </form>
+
+            <p class="hint" style="margin-top: 1.5rem;">
+                Not signed in? <a href="signup.html">Go to the sign-up page</a>.
+                &nbsp;|&nbsp; <a href="profile.html">See the short version of this code</a>.
+            </p>
+        </section>
+
+    </div>
+
+    <script>
+        // =====================================================================
+        //  WHAT THIS PAGE DOES, IN ORDER
+        //
+        //   1. Ask who is signed in.
+        //   2. Ask Supabase: does this person already have a profile?
+        //   3. When a picture is picked: check its type, its weight and its shape.
+        //   4. When Save is pressed: send the picture, then save the row.
+        //
+        //  Every job below is its own small function with a name that says
+        //  what it does. Read them from top to bottom.
+        //
+        //  Words used in this file:
+        //    await  = "wait here until this job finishes"
+        //    async  = "this function will use await inside"
+        // =====================================================================
+
+
+        // ---------------------------------------------------------------------
+        //  The settings. Change these only if your project changes.
+        // ---------------------------------------------------------------------
+        const PROJECT_URL = 'https://decwucuwqnzrxzbxxifu.supabase.co';
+        const PROJECT_KEY = 'sb_publishable_ONnalS_8pdIUH2Qrsz67CA_z4Wco9I2';
+
+        const TABLE_NAME = 'user_profiles';
+        const BUCKET_NAME = 'avatars';
+
+        const BIGGEST_ALLOWED_PIXELS = 400;
+        const BIGGEST_ALLOWED_BYTES = 500 * 1024;
+        const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
+
+        const db = supabase.createClient(PROJECT_URL, PROJECT_KEY);
+
+
+        // ---------------------------------------------------------------------
+        //  The parts of the page we will touch.
+        // ---------------------------------------------------------------------
+        const profileForm = document.getElementById('profile-form');
+        const emailBox = document.getElementById('email');
+        const usernameBox = document.getElementById('username');
+        const imageBox = document.getElementById('image');
+        const saveButton = document.getElementById('save-button');
+        const statusText = document.getElementById('status-text');
+        const previewBox = document.getElementById('preview-box');
+        const previewPicture = document.getElementById('preview-picture');
+        const previewWords = document.getElementById('preview-words');
+
+
+        // ---------------------------------------------------------------------
+        //  What the page remembers while we use it.
+        // ---------------------------------------------------------------------
+        let loggedInUser = null;        // the person using the page
+        let existingProfile = null;     // their row, if they already have one
+        let chosenFile = null;          // the picture picked in this visit
+        let previewUrlOnThisComputer = null;
+
+
+        // =====================================================================
+        //  PART 1 — showing words and pictures on the screen
+        // =====================================================================
+
+        // Writes a plain sentence at the bottom of the form.
+        function showMessage(words) {
+            statusText.textContent = words;
+            statusText.className = 'status';
+        }
+
+        // Writes a red sentence, used when something went wrong.
+        function showProblem(words) {
+            statusText.textContent = words;
+            statusText.className = 'status error';
+        }
+
+        // Writes a green sentence, used when something worked.
+        function showGoodNews(words) {
+            statusText.textContent = words;
+            statusText.className = 'status success';
+        }
+
+        // Lets the person press Save.
+        function turnOnSaveButton() {
+            saveButton.disabled = false;
+        }
+
+        // Stops the person pressing Save again while we are busy.
+        function turnOffSaveButton() {
+            saveButton.disabled = true;
+        }
+
+        // Changes the button between "Save" and "Update".
+        function changeSaveButtonWords() {
+            if (existingProfile === null) {
+                saveButton.textContent = 'Save profile';
+            } else {
+                saveButton.textContent = 'Update profile';
+            }
+        }
+
+        // Hides the picture box.
+        function hideThePicture() {
+            previewBox.hidden = true;
+        }
+
+        // Frees the temporary picture the person picked off their computer.
+        function forgetTheOldPreview() {
+            if (previewUrlOnThisComputer !== null) {
+                URL.revokeObjectURL(previewUrlOnThisComputer);
+                previewUrlOnThisComputer = null;
+            }
+        }
+
+        // Shows the picture that was picked off the computer.
+        function showPictureFromThisComputer(temporaryUrl, width, height) {
+            forgetTheOldPreview();
+            previewUrlOnThisComputer = temporaryUrl;
+            previewPicture.src = temporaryUrl;
+            previewWords.textContent = width + ' x ' + height + ' pixels. Not saved yet.';
+            previewBox.hidden = false;
+        }
+
+        // Shows the picture that is already saved in Supabase.
+        function showPictureFromSupabase(path) {
+            forgetTheOldPreview();
+            const answer = db.storage.from(BUCKET_NAME).getPublicUrl(path);
+            previewPicture.src = answer.data.publicUrl;
+            previewWords.textContent = 'This is your saved picture.';
+            previewBox.hidden = false;
+        }
+
+        // Puts the email from the sign-in into the grey box.
+        function putEmailInBox(user) {
+            emailBox.value = user.email;
+        }
+
+        // Puts a saved profile into the form.
+        function fillInTheForm(profile) {
+            usernameBox.value = profile.username;
+        }
+
+
+        // =====================================================================
+        //  PART 2 — asking Supabase things
+        // =====================================================================
+
+        // Asks: who is signed in? Gives back the person, or null.
+        async function findLoggedInUser() {
+            const result = await db.auth.getSession();
+
+            if (result.error !== null) {
+                return null;
+            }
+
+            if (result.data.session === null) {
+                return null;
+            }
+
+            return result.data.session.user;
+        }
+
+        // Asks Supabase for this person's profile row.
+        // Gives back Supabase's answer: answer.data (the rows) and answer.error.
+        async function askSupabaseForThisUsersProfile(user) {
+            const answer = await db
+                .from(TABLE_NAME)
+                .select('*')
+                .eq('uuid', user.id)
+                .limit(1);
+
+            return answer;
+        }
+
+        // Sends the picture file up to the avatars bucket.
+        // Gives back Supabase's answer: answer.error, or null if it worked.
+        async function uploadPicture(path, file) {
+            const answer = await db
+                .storage
+                .from(BUCKET_NAME)
+                .upload(path, file, { contentType: file.type });
+
+            return answer;
+        }
+
+        // Saves the row. New profile = insert. Old profile = update.
+        async function saveTheProfileRow(user, username, picturePath) {
+            const row = {
+                email: user.email,
+                username: username,
+                imagename: picturePath
+            };
+
+            if (existingProfile === null) {
+                return await db.from(TABLE_NAME).insert(row).select();
+            }
+
+            return await db.from(TABLE_NAME).update(row).eq('uuid', user.id).select();
+        }
+
+        // Deletes an old picture we no longer need.
+        // If it fails, we do not care enough to stop.
+        async function deleteOldPicture(path) {
+            await db.storage.from(BUCKET_NAME).remove([path]);
+        }
+
+
+        // =====================================================================
+        //  PART 3 — checking the picture before we send it
+        // =====================================================================
+
+        // Is this file a jpg, a png or a gif?
+        function doesFileHaveGoodType(file) {
+            if (ALLOWED_IMAGE_TYPES.includes(file.type)) {
+                return true;
+            }
+            return false;
+        }
+
+        // Is this file heavier than 500 KB?
+        function isFileTooHeavy(file) {
+            if (file.size > BIGGEST_ALLOWED_BYTES) {
+                return true;
+            }
+            return false;
+        }
+
+        // Is this picture wider or taller than 400 pixels?
+        function isPictureTooBig(width, height) {
+            if (width > BIGGEST_ALLOWED_PIXELS) {
+                return true;
+            }
+            if (height > BIGGEST_ALLOWED_PIXELS) {
+                return true;
+            }
+            return false;
+        }
+
+        // Asks the browser how wide and tall a picture is.
+        // The answer does not arrive instantly, so we hand back a Promise.
+        function readPictureSize(file) {
+            return new Promise(function (resolve, reject) {
+                const temporaryUrl = URL.createObjectURL(file);
+                const picture = new Image();
+
+                picture.onload = function () {
+                    resolve({
+                        width: picture.naturalWidth,
+                        height: picture.naturalHeight,
+                        temporaryUrl: temporaryUrl
+                    });
+                };
+
+                picture.onerror = function () {
+                    URL.revokeObjectURL(temporaryUrl);
+                    reject(new Error('That file is not a picture.'));
+                };
+
+                picture.src = temporaryUrl;
+            });
+        }
+
+        // Gives the picture a name like 38cd739a-.../1792558050912.jpg
+        function makeFilePath(user, file) {
+            const now = Date.now();
+            const extension = getFileExtension(file);
+            return user.id + '/' + now + '.' + extension;
+        }
+
+        // Works out jpg, png or gif from the file's type.
+        function getFileExtension(file) {
+            if (file.type === 'image/jpeg') {
+                return 'jpg';
+            }
+            if (file.type === 'image/png') {
+                return 'png';
+            }
+            if (file.type === 'image/gif') {
+                return 'gif';
+            }
+            return 'jpg';
+        }
+
+
+        // =====================================================================
+        //  PART 4 — turning Supabase's error into a sentence
+        // =====================================================================
+
+        // Explains an error in plain words.
+        function explain(error) {
+            if (error === null) {
+                return 'Unknown problem.';
+            }
+
+            const text = String(error.message);
+
+            if (error.code === '23505') {
+                return 'That username or email is already in use.';
+            }
+
+            if (error.code === '42501') {
+                return 'The database said no. Sign in again, or check the table policies.';
+            }
+
+            if (text.indexOf('row-level security') !== -1) {
+                return 'Storage said no. The avatars bucket needs a policy that allows uploads.';
+            }
+
+            if (text.indexOf('Bucket not found') !== -1) {
+                return 'The avatars bucket was not found.';
+            }
+
+            if (text.indexOf('exceeded the maximum') !== -1) {
+                return 'That file is too big for the bucket.';
+            }
+
+            return text;
+        }
+
+
+        // =====================================================================
+        //  PART 5 — what happens when the person does something
+        // =====================================================================
+
+        // Runs when the person picks a picture.
+        async function whenPictureIsPicked() {
+            chosenFile = null;
+
+            if (imageBox.files.length === 0) {
+                if (existingProfile === null) {
+                    hideThePicture();
+                } else {
+                    showPictureFromSupabase(existingProfile.imagename);
+                }
+                return;
+            }
+
+            const file = imageBox.files[0];
+
+            if (doesFileHaveGoodType(file) === false) {
+                showProblem('Please choose a JPG, a PNG or a GIF.');
+                imageBox.value = '';
+                return;
+            }
+
+            if (isFileTooHeavy(file)) {
+                showProblem('That file is ' + Math.round(file.size / 1024) + ' KB. The biggest allowed is 500 KB.');
+                imageBox.value = '';
+                return;
+            }
+
+            let size = null;
+
+            try {
+                size = await readPictureSize(file);
+            } catch (error) {
+                showProblem('That file could not be read as a picture.');
+                imageBox.value = '';
+                return;
+            }
+
+            if (isPictureTooBig(size.width, size.height)) {
+                URL.revokeObjectURL(size.temporaryUrl);
+                imageBox.value = '';
+                showProblem('That picture is ' + size.width + ' x ' + size.height + '. The biggest allowed is 400 x 400.');
+                return;
+            }
+
+            chosenFile = file;
+            showPictureFromThisComputer(size.temporaryUrl, size.width, size.height);
+            showMessage('');
+        }
+
+        // Runs when the person presses Save.
+        async function whenSaveIsPressed(event) {
+            // Stop the browser from reloading the whole page.
+            event.preventDefault();
+
+            if (loggedInUser === null) {
+                return;
+            }
+
+            const username = usernameBox.value.trim();
+
+            if (username === '') {
+                showProblem('Please type a username.');
+                usernameBox.focus();
+                return;
+            }
+
+            if (chosenFile === null && existingProfile === null) {
+                showProblem('Please choose a picture.');
+                return;
+            }
+
+            turnOffSaveButton();
+            showMessage('Saving...');
+
+            let picturePath = null;
+
+            if (existingProfile !== null) {
+                picturePath = existingProfile.imagename;
+            }
+
+            // Step 1: upload the picture, but only if a new one was picked.
+            if (chosenFile !== null) {
+                picturePath = makeFilePath(loggedInUser, chosenFile);
+                const uploadAnswer = await uploadPicture(picturePath, chosenFile);
+
+                if (uploadAnswer.error !== null) {
+                    showProblem('The picture did not upload. ' + explain(uploadAnswer.error));
+                    turnOnSaveButton();
+                    return;
+                }
+            }
+
+            // Step 2: save the row.
+            const saveAnswer = await saveTheProfileRow(loggedInUser, username, picturePath);
+
+            if (saveAnswer.error !== null) {
+                showProblem('The profile was not saved. ' + explain(saveAnswer.error));
+                if (chosenFile !== null) {
+                    await deleteOldPicture(picturePath);
+                }
+                turnOnSaveButton();
+                return;
+            }
+
+            if (saveAnswer.data.length === 0) {
+                showProblem('Nothing was saved. Your sign-in may have ended. Please sign in again.');
+                turnOnSaveButton();
+                return;
+            }
+
+            const savedProfile = saveAnswer.data[0];
+
+            // Step 3: the old picture is no longer used, so remove it.
+            if (existingProfile !== null && existingProfile.imagename !== savedProfile.imagename) {
+                await deleteOldPicture(existingProfile.imagename);
+            }
+
+            existingProfile = savedProfile;
+            chosenFile = null;
+            imageBox.value = '';
+            showPictureFromSupabase(savedProfile.imagename);
+            changeSaveButtonWords();
+            showGoodNews('Profile saved.');
+            turnOnSaveButton();
+        }
+
+
+        // =====================================================================
+        //  PART 6 — starting the page
+        // =====================================================================
+
+        // Runs once, when the page opens.
+        async function startThePage() {
+            showMessage('Checking your sign-in...');
+
+            const user = await findLoggedInUser();
+
+            if (user === null) {
+                showProblem('You are not signed in. Please sign in on the sign-up page first.');
+                turnOffSaveButton();
+                return;
+            }
+
+            loggedInUser = user;
+            putEmailInBox(user);
+
+            const profileAnswer = await askSupabaseForThisUsersProfile(user);
+
+            if (profileAnswer.error !== null) {
+                showProblem('Your profile could not be read. ' + explain(profileAnswer.error));
+                turnOnSaveButton();
+                return;
+            }
+
+            if (profileAnswer.data.length === 0) {
+                showMessage('No profile yet. Choose a username and a picture.');
+            } else {
+                existingProfile = profileAnswer.data[0];
+                fillInTheForm(existingProfile);
+                showPictureFromSupabase(existingProfile.imagename);
+                showMessage('You already have a profile. Change it and save.');
+            }
+
+            changeSaveButtonWords();
+            turnOnSaveButton();
+        }
+
+
+        // Connect the page parts to the functions above.
+        imageBox.addEventListener('change', whenPictureIsPicked);
+        profileForm.addEventListener('submit', whenSaveIsPressed);
+
+        // Go.
+        startThePage();
+    </script>
+
+</body>
+
+</html>

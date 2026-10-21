@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
+
+    <style>
+        body {
+            background-color: antiquewhite;
+            margin: 0;
+            min-height: 100vh;
+            font: small monospace, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: start;
+            margin-top: 0.66rem;
+            ;
+
+            gap: 1rem;
+        }
+
+
+
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        input {
+            width: 100%;
+
+            border: 1px solid dashed;
+            border-radius: 10px;
+
+            padding: 11px 13px;
+            font: inherit;
+            font-size: 15px;
+            margin-bottom: 16px;
+        }
+
+        input::placeholder {
+            color: #a8a9aa;
+        }
+
+        input:focus {
+            outline: 2px solid #3bdf25;
+            outline-offset: 1px;
+
+        }
+
+        header {
+            padding: 1rem;
+            background-color: #5f6675;
+            color: snow;
+        }
+
+        hr {
+            width: 90%;
+            background-color: black;
+        }
+
+        .signup-results ul {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .info ul {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 13px;
+            padding: 0 8px;
+            margin: 0;
+            list-style-type: none;
+
+            p {
+                margin-bottom: 4px;
+                color: crimson;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h3>My Great App Login Up Page:</h3>
+        <a href="./profile.html" style="color:snow">Profile page</a>
+    </header>
+
+    <div class="wrapper">
+
+        <section>
+            <h4>Log in here:</h4>
+            <form id="form" novalidate>
+                <label for="email">Email</label>
+                <input id="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+
+                <label for="password">Password</label>
+                <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" required>
+
+                <div>
+                    <button class="primary" id="submit" type="submit">Log in</button>
+                    <button type="button" class="logout-btn" onclick="logOut()">Log Out</button>
+
+                </div>
+
+            </form>
+
+        </section>
+        <hr />
+        <p style="margin: 0">Current User Status:</p>
+        <div class="signup-results">
+
+            <span></span>
+        </div>
+
+        <hr />
+        <div class="info">
+            <ul>
+                <li>
+                    <p>createClient():</p>const db = supabase.createClient(
+                    SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY
+                    );
+                </li>
+                <li>
+                    <p>login():</p> const result = await db.auth.signInWithPassword({ email: user_email, password:
+                    user_password
+                    });
+                </li>
+                <li>
+                    <p>signOut()</p>const result = await db.auth.signOut();
+                </li>
+                <li>
+                    <p>is current user in a session:</p>const resultObj = await db.auth.getSession();
+                </li>
+            </ul>
+        </div>
+
+    </div>
+
+
+    <script>
+        const SUPABASE_URL = 'https://decwucuwqnzrxzbxxifu.supabase.co';
+        const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_ONnalS_8pdIUH2Qrsz67CA_z4Wco9I2';
+
+        // db is now a global
+        const db = supabase.createClient(
+            SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY
+        );
+    </script>
+
+
+
+    <script>
+
+
+
+        async function submit(event) {
+            event.preventDefault();
+
+            const formPointer = document.querySelector('#form');
+
+            const formData = new FormData(formPointer);
+            let user_email = formPointer.querySelector("#email").value;
+            let user_password = formPointer.querySelector("#password").value;
+
+
+            user_email = user_email.trim();
+            user_password = user_password.trim();
+
+
+
+
+
+
+            const result = await db.auth.signInWithPassword({ email: user_email, password: user_password });
+
+            // easy debugging, availble in console
+            window.currentUserObj = result;
+
+            let data = result.data;
+            let error = result.error;
+
+
+
+
+            if (error) {
+                alert(error.message);          // e.g. "Invalid login credentials"
+                return;
+            }
+
+
+            // if we get here the session obj has been created, we can now access
+            isCurrentUserSession();
+
+
+        }
+
+        async function logOut() {
+            const result = await db.auth.signOut();
+
+            if (result.error == null) {
+                // no error logout worked
+                isCurrentUserSession();
+            }
+
+
+
+
+        }
+
+        function updateUI(email, status, uid, duration) {
+            let results_element = document.querySelector('.signup-results');
+            results_element.innerHTML = `<ul style="padding:0;">
+                <li>Email: ${email}</li>
+                <li>Status: ${status}</li>
+                <li>UID: ${uid}</li>
+                <li>Valid Until: ${duration > 0 ? new Date(duration * 1000).toLocaleTimeString() : "--"}</li>
+                </ul>`;
+        }
+
+        async function isCurrentUserSession() {
+            // const { data: { session }, error } = 
+
+            const resultObj = await db.auth.getSession();
+
+            const session = resultObj.data.session;
+            const error = resultObj.error;
+
+            if (session) {
+                console.log('User is logged in:', session.user);
+                updateUI(session.user.email, session.user.role, session.user.id, session.expires_at);
+                disableLogOutButton(false);
+            } else {
+                console.log('No active session found.');
+                updateUI("none", "none", "none", null);
+                disableLogOutButton(true);
+            }
+
+        }
+
+        function disableLogOutButton(bool) {
+            let logout_element = document.querySelector('.logout-btn');
+            logout_element.disabled = bool;
+        }
+
+
+        isCurrentUserSession();
+
+
+
+
+        const theForm = document.getElementById('form');
+        theForm.addEventListener('submit', submit);
+    </script>
+
+
+</body>
+
+</html>

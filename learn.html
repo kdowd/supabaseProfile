@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learn: how the profile page works</title>
+
+    <style>
+        body {
+            background-color: antiquewhite;
+            margin: 0;
+            min-height: 100vh;
+            font: small monospace, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            color: #2b2620;
+        }
+
+        header {
+            padding: 1rem;
+            background-color: #5f6675;
+            color: snow;
+        }
+
+        header h3 {
+            margin: 0;
+        }
+
+        .wrapper {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 1.5rem 1rem 4rem;
+        }
+
+        .lead {
+            font-size: 14px;
+            line-height: 1.65;
+            margin: 0 0 1.25rem;
+        }
+
+        .card {
+            border: 1px solid #cfc3ae;
+            border-radius: 12px;
+            background-color: #fffaf2;
+            padding: 1.1rem 1.15rem;
+            margin: 0 0 1rem;
+        }
+
+        .step {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 26px;
+            border-radius: 999px;
+            border: 1px solid #1d6b2f;
+            color: #1d6b2f;
+            font-weight: 700;
+            font-size: 13px;
+            margin-bottom: .55rem;
+        }
+
+        h4 {
+            margin: 0 0 .5rem;
+            font-size: 15px;
+        }
+
+        p {
+            margin: 0 0 .6rem;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        p:last-child {
+            margin-bottom: 0;
+        }
+
+        code {
+            background-color: #efe6d8;
+            border-radius: 4px;
+            padding: 1px 5px;
+            font-size: 12px;
+        }
+
+        pre {
+            background-color: #2b2620;
+            color: #f4ede0;
+            padding: 12px;
+            border-radius: 10px;
+            overflow-x: auto;
+            font-size: 12px;
+            line-height: 1.55;
+            margin: .75rem 0 0;
+        }
+
+        pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+            font-size: 12px;
+        }
+
+        .note,
+        .warn {
+            border-radius: 10px;
+            padding: .7rem .8rem;
+            font-size: 12.5px;
+            line-height: 1.55;
+            margin: .8rem 0 0;
+            border: 1px solid;
+        }
+
+        .note {
+            background-color: #eef6ee;
+            border-color: #bcd9bf;
+            color: #2b4a30;
+        }
+
+        .warn {
+            background-color: #fdf4e3;
+            border-color: #e6cfa0;
+            color: #5a4420;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 12.5px;
+            margin: .75rem 0 0;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 6px 8px;
+            border-bottom: 1px solid #e2d8c7;
+            vertical-align: top;
+        }
+
+        th {
+            font-size: 11px;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: #6b6257;
+        }
+
+        ul {
+            margin: .5rem 0 0;
+            padding-left: 1.1rem;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        li {
+            margin: .25rem 0;
+        }
+
+        a {
+            color: #1d6b2f;
+        }
+
+        .tip {
+            font-size: 12.5px;
+            color: #6b6257;
+            margin-top: 1.5rem;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h3>How the profile page works:</h3>
+    </header>
+
+    <div class="wrapper">
+
+        <p class="lead">
+            Saving a profile needs three things: a <strong>table</strong> for the details,
+            a <strong>bucket</strong> for the picture, and <strong>policies</strong> for who
+            is allowed to do what. Get any one of them wrong and the page breaks in a
+            different way each time.
+        </p>
+
+        <section class="card">
+            <span class="step">1</span>
+            <h4>The table: <code>user_profiles</code></h4>
+
+            <p>
+                One row per person. It stores the username and the <em>name</em> of the image
+                file, not the image itself.
+            </p>
+
+            <table>
+                <tr>
+                    <th>column</th>
+                    <th>what it holds</th>
+                </tr>
+                <tr>
+                    <td><code>id</code></td>
+                    <td>a number that counts up automatically</td>
+                </tr>
+                <tr>
+                    <td><code>uuid</code></td>
+                    <td>who owns the row &mdash; filled in by the database</td>
+                </tr>
+                <tr>
+                    <td><code>email</code></td>
+                    <td>from the sign-in session</td>
+                </tr>
+                <tr>
+                    <td><code>username</code></td>
+                    <td>what the person typed</td>
+                </tr>
+                <tr>
+                    <td><code>imagename</code></td>
+                    <td>the file path, e.g. <code>38cd&hellip;/1792&hellip;.jpg</code></td>
+                </tr>
+            </table>
+
+            <pre><code>create table public.user_profiles (
+  id bigint generated always as identity primary key,
+  uuid uuid not null default auth.uid(),
+  email text not null unique,
+  username text not null unique,
+  imagename text not null
+);</code></pre>
+
+            <div class="note">
+                <strong>Why <code>auth.uid()</code> matters:</strong> The database reads it from the login token and
+                fills it in. So nobody can create a row pretending to be someone else.
+            </div>
+        </section>
+
+        <section class="card">
+            <span class="step">2</span>
+            <h4>The bucket: <code>avatars</code></h4>
+
+            <p>
+                A bucket is just a folder in Supabase Storage. Ours is called
+                <code>avatars</code>, and every file sits inside a folder named after its
+                owner:
+            </p>
+
+            <pre><code>avatars/
+  └── 38cd739a-821b-4b6d-adb5-d29abe0abf73/
+        └── 1792558050912.jpg</code></pre>
+
+            <p>Those folder names are not decoration. The storage policy checks them.</p>
+
+            <p>Bucket settings:</p>
+            <ul>
+                <li><strong>Public:</strong> on, so the image can be shown with a plain URL</li>
+                <li><strong>Size limit:</strong> about 500 KB per file</li>
+                <li><strong>Types:</strong> jpg, png and gif only</li>
+            </ul>
+
+            <div class="warn">
+                <strong>Public only affects reading.</strong> Making the bucket public lets
+                anyone <em>view</em> a picture. It does not let anyone <em>upload</em> &mdash;
+                that still needs a policy.
+            </div>
+        </section>
+
+        <section class="card">
+            <span class="step">3</span>
+            <h4>Policies: the bouncer</h4>
+
+            <p>
+                Every table and bucket has Row Level Security. When it is on, the default
+                answer to every request is <strong>no</strong>. Policies are the list of
+                exceptions.
+            </p>
+
+            <p>On <code>user_profiles</code> there are four, one per action. Each one asks the
+                same question: <em>does this row belong to the person asking?</em></p>
+
+            <pre><code>create policy "Users can view own profile"
+  on public.user_profiles for select
+  using (auth.uid() = uuid);</code></pre>
+
+            <p>
+                The other three are identical in shape &mdash; replace <code>select</code> with
+                <code>insert</code>, <code>update</code> or <code>delete</code>.
+            </p>
+
+            <p>Storage needs its own policies:</p>
+            <ul>
+                <li><strong>Read:</strong> anyone, because the pictures are public</li>
+                <li><strong>Upload / replace / delete:</strong> signed-in users only</li>
+            </ul>
+
+            <p>Now the question everyone trips over: who is asking?</p>
+
+            <table>
+                <tr>
+                    <th>person</th>
+                    <th>database role</th>
+                    <th><code>auth.uid()</code></th>
+                </tr>
+                <tr>
+                    <td>not signed in</td>
+                    <td><code>anon</code></td>
+                    <td><code>null</code></td>
+                </tr>
+                <tr>
+                    <td>signed in</td>
+                    <td><code>authenticated</code></td>
+                    <td>their UUID</td>
+                </tr>
+            </table>
+
+            <p style="margin-top:.75rem;">
+                <code>anon</code> is exactly "not logged in". It is one shared role for every
+                visitor on earth, which is why a policy comparing
+                <code>auth.uid() = uuid</code> quietly refuses it &mdash; <code>null</code>
+                is never equal to anything.
+            </p>
+
+            <div class="warn">
+                <strong>Check the Role box when you make a policy.</strong> Left blank, it
+                defaults to <code>public</code>, meaning <em>everyone including anon</em>. A
+                policy you meant for "signed-in users" can end up open to the whole internet.
+            </div>
+        </section>
+
+        <section class="card">
+            <span class="step">4</span>
+            <h4>The page, in order</h4>
+
+            <p>Each step needs the one before it:</p>
+
+            <ul>
+                <li>sign in, and read the session</li>
+                <li>pick a file, and check it in the browser</li>
+                <li>upload the file to <code>avatars/&lt;uuid&gt;/</code></li>
+                <li>write the row with that path</li>
+            </ul>
+
+            <pre><code>const { data: { session } } = await db.auth.getSession();
+const user = session.user;
+
+const path = `${user.id}/${Date.now()}.jpg`;
+await db.storage.from('avatars').upload(path, file);
+
+await db.from('user_profiles').insert({
+  email: user.email,
+  username: username,
+  imagename: path
+});</code></pre>
+
+            <div class="note">
+                <strong>Why the 400&times;400 check is in JavaScript:</strong> the database can
+                store a file but cannot measure one. So the browser measures the image before
+                uploading. The bucket still caps the size and the file type.
+            </div>
+        </section>
+
+        <section class="card">
+            <h4>When it breaks, the message tells you where</h4>
+
+            <table>
+                <tr>
+                    <th>you see</th>
+                    <th>the problem is</th>
+                </tr>
+                <tr>
+                    <td>"Bucket not found"</td>
+                    <td>the bucket exists but is not marked public</td>
+                </tr>
+                <tr>
+                    <td>"new row violates row-level security policy"</td>
+                    <td>a policy is missing, or the Role is wrong</td>
+                </tr>
+                <tr>
+                    <td>image saves, then shows broken after refresh</td>
+                    <td>the upload worked; the bucket is private</td>
+                </tr>
+            </table>
+
+            <p style="margin-top:.75rem;">
+                One last trap: <code>getPublicUrl()</code> does not check that a file exists.
+                It just builds a URL. A broken image usually means the bucket flag, not the
+                upload.
+            </p>
+        </section>
+
+        <p class="tip">
+            Try it: <a href="signup.html">sign up</a>, then
+            <a href="profile.html">create your profile</a>.
+        </p>
+
+    </div>
+
+</body>
+
+</html>
